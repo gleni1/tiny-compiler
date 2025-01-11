@@ -87,3 +87,54 @@ func tokenizer(input string) []token {
   }
   return tokens
 }
+
+
+// isNumber accepts a string and will check to see whether or not what has been
+// passed through is between the range of 0 - 9.
+func isNumber(char string) bool {
+	if char == "" {
+		return false
+	}
+	n := []rune(char)[0]
+	if n >= '0' && n <= '9' {
+		return true
+	}
+	return false
+}
+
+// isLetter works in a similar way to isNumber, but checks the range for a
+// letter in the range of a - z.
+func isLetter(char string) bool {
+	if char == "" {
+		return false
+	}
+	n := []rune(char)[0]
+	if n >= 'a' && n <= 'z' {
+		return true
+	}
+	return false
+}
+
+
+ type node struct {
+	kind       string
+	value      string
+	name       string
+	callee     *node
+	expression *node
+	body       []node
+	params     []node
+	arguments  *[]node
+	context    *[]node
+}
+
+// Type `ast` is just another alias type. I find this makes part of the code
+// more readable, as you'll come to see that there are a ton of references to
+// `node`.
+type ast node
+
+// This is the counter variable that we'll use for parsing.
+var pc int
+
+// This variable will store our slice of `token`s inside of it.
+var pt []token
