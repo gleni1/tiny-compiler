@@ -1,9 +1,9 @@
 package main
 
 import (
-  _ "fmt"
-  _ "log"
-  _ "strings"
+	"fmt"
+	"log"
+	"strings"
 )
 
 type token struct {
@@ -99,7 +99,7 @@ func isNumber(char string) bool {
   return false
 }
 
-func isLetter() {
+func isLetter(char string) bool {
   if char == "" {
     return false
   }
@@ -186,4 +186,145 @@ func walk() node {
 
   log.Fatal(token.kind)
   return node{}
+}
+
+
+type visitor map[string]func(n *node, p node)
+
+func traverser(a ast, v visitor) {
+  traverseNode(node(a), node{}, v)
+}
+
+func traverseArray(a []node, p node, v visitor) {
+  for _, child := range a {
+    traverseNode(child, p, v)
+  }
+}
+
+
+func traverseNode(n, p node, v visitor) {
+
+  for k, va := range v {
+    if k == n.kind {
+      va(&n, p)
+    }
+  }
+
+  switch n.kind {
+  case "Program":
+    traverseArray(n.body, n, v)
+    break 
+  
+
+  case "CallExpression":
+    traverseArray(n.params, n, v)
+    break
+  
+
+  case "NumberLiteral":
+    break
+
+  default:
+    log.Fatal(n.kind)
+  }
+}
+
+
+func transformer(a ast) ast {
+
+  nast := ast {
+    kind:   "Program",
+    body:   []node{},
+  }
+
+  a.context = &nast.body 
+
+  traverser(a, map[string]func(n *node, p node) {
+    "NumberLiteral": func(n *node, p node) {
+      *p.context = append(*p.context, node {
+        kind:   "NumberLiteral",
+        value:  n.value,
+      })
+    },
+
+    "CallExpression": func(n *node, p node) {
+
+      e := node {
+        kind:   "CallExpression",
+        callee: &node {
+          kind: "Identifier",
+          name: n.name,
+        },
+        arguments: new([]node),
+      }
+
+
+      n.context = e.arguments 
+
+      if p.kind != "CallExpression" {
+        es := node {
+          kind:   "ExpressionStatement",
+          expression:   &e,
+        }
+
+        *p.context = append(*p.context, es)
+      } else {
+        *p.context = append(*p.context, e)
+      }
+    },
+  })
+
+  return nast
+}
+
+func codeGenerator(n node) string {
+  switch n.kind {
+
+  case "Program":
+    var r []string 
+    for _, no := range n.body {
+      r = append(r, codeGenerator(no))
+    }
+    return strings.Join(r, "\n")
+
+  case "ExpressionStatement":
+    return codeGenerator(*n.expression) + ";"
+
+  case "CallExpression":
+    var ra []string 
+    c := codeGenerator(*n.callee)
+
+    for _, no := range *n.arguments {
+      ra = append(ra, codeGenerator(no))
+    }
+
+    r := strings.Join(ra, ",")
+    return c + "(" + r + ")"
+
+  case "Identifier":
+    return n.name 
+
+
+  case "NumberLiteral":
+    return n.value 
+
+  default:
+    log.Fatal("err")
+    return ""
+  }
+}
+
+func compiler(input string) string {
+  tokens := tokenizer(input)
+  ast := parser(tokens)
+  nast := transformer(ast)
+  out := codeGenerator(node(nast))
+
+  return out 
+}
+
+func main() {
+  program := "(add 10 (subtract 10 6))"
+  out := compiler(program)
+  fmt.Println(out)
 }
